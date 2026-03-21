@@ -1,0 +1,420 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Moon, Flame, Droplets, AlertTriangle, Mountain, Sun, Shuffle, Skull } from 'lucide-react';
+
+const TARGET_DATE = new Date('2036-03-13T00:00:00').getTime();
+
+const COPING_MECHANISMS = [
+  "Step 1: Buy more toilet paper. Step 2: There is no Step 2.",
+  "Just pretend it's a very aggressive software update for the universe.",
+  "Invest heavily in bottle caps. It worked in Fallout.",
+  "Breathe in. Breathe out. Scream internally.",
+  "If you stop looking at the clock, time stops. Right? ...Right?",
+  "Have you tried turning the planet off and on again?",
+  "At least you don't have to worry about your 2037 tax returns.",
+  "Hydrate! You want to be a well-hydrated corpse.",
+  "Start writing a novel. You won't finish it, but it kills time.",
+  "Remember: The void is incredibly carbon-neutral."
+];
+
+const THEMES = {
+  dark: {
+    id: 'dark',
+    name: 'Cynical Midnight',
+    icon: <Moon size={18} />,
+    bg: 'bg-slate-950',
+    text: 'text-slate-100',
+    glass: '',
+    accent: 'text-indigo-400'
+  },
+  fire: {
+    id: 'fire',
+    name: 'Hellfire',
+    icon: <Flame size={18} />,
+    bg: 'bg-gradient-to-br from-red-900 via-orange-950 to-black',
+    text: 'text-orange-100',
+    glass: '',
+    accent: 'text-orange-400',
+    extraClass: 'animate-pulse-slow'
+  },
+  water: {
+    id: 'water',
+    name: 'Global Flood',
+    icon: <Droplets size={18} />,
+    bg: 'bg-gradient-to-t from-blue-950 via-cyan-900 to-blue-950',
+    text: 'text-cyan-100',
+    glass: '',
+    accent: 'text-cyan-300'
+  },
+  meteor: {
+    id: 'meteor',
+    name: 'Impact Warning',
+    icon: <AlertTriangle size={18} />,
+    bg: 'bg-stone-950',
+    text: 'text-red-500',
+    glass: 'animate-shake',
+    accent: 'text-red-500'
+  },
+  volcano: {
+    id: 'volcano',
+    name: 'Supervolcano',
+    icon: <Mountain size={18} />,
+    bg: 'bg-gradient-to-t from-orange-700 via-red-900 to-zinc-950',
+    text: 'text-yellow-100',
+    glass: '',
+    accent: 'text-yellow-500'
+  },
+  light: {
+    id: 'light',
+    name: 'Everything is Fine',
+    icon: <Sun size={18} />,
+    bg: 'bg-gradient-to-br from-yellow-100 to-white',
+    text: 'text-slate-800',
+    glass: '',
+    accent: 'text-amber-600'
+  }
+};
+
+export default function App() {
+  const [timeLeft, setTimeLeft] = useState({ y: 0, mo: 0, d: 0, h: 0, m: 0, s: 0, ms: 0 });
+  const [totalDays, setTotalDays] = useState(0);
+  const [activeTheme, setActiveTheme] = useState('dark');
+  const [copingTip, setCopingTip] = useState(COPING_MECHANISMS[0]);
+  
+  // Panic State
+  const [panicState, setPanicState] = useState({ isPanicking: false, startTime: null });
+  const [showJokeMessage, setShowJokeMessage] = useState(false);
+
+  // Generate Special Effect Particles (Meteors, Ash, Embers)
+  const [particles, setParticles] = useState([]);
+  
+  useEffect(() => {
+    if (activeTheme === 'meteor') {
+      setParticles(Array.from({ length: 15 }).map((_, i) => ({
+        id: i, type: 'meteor', left: Math.random() * 100, delay: Math.random() * 2, duration: 1 + Math.random() * 2, icon: Math.random() > 0.5 ? '🪨' : '🔥'
+      })));
+    } else if (activeTheme === 'volcano') {
+      setParticles(Array.from({ length: 40 }).map((_, i) => ({
+        id: i, type: 'ash', left: Math.random() * 100, delay: Math.random() * 5, duration: 3 + Math.random() * 5
+      })));
+    } else if (activeTheme === 'fire') {
+      setParticles(Array.from({ length: 60 }).map((_, i) => ({
+        id: i, type: 'ember', left: Math.random() * 100, delay: Math.random() * 3, duration: 1 + Math.random() * 3
+      })));
+    } else {
+      setParticles([]);
+    }
+  }, [activeTheme]);
+
+  // Main Timer Logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      let now = Date.now();
+      
+      // Fake time acceleration logic during panic
+      if (panicState.isPanicking) {
+        const panicDurationMs = now - panicState.startTime;
+        // Exponentially speed up time visually (1 real ms = 100,000 simulated ms)
+        now += panicDurationMs * 100000; 
+      }
+
+      const diff = TARGET_DATE - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ y: 0, mo: 0, d: 0, h: 0, m: 0, s: 0, ms: 0 });
+        clearInterval(timer);
+        return;
+      }
+
+      // Calculate dates using average length equivalents for reliable multi-unit countdown displays
+      const y = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+      const remY = diff % (1000 * 60 * 60 * 24 * 365.25);
+      const mo = Math.floor(remY / (1000 * 60 * 60 * 24 * 30.4375));
+      const remMo = remY % (1000 * 60 * 60 * 24 * 30.4375);
+      const d = Math.floor(remMo / (1000 * 60 * 60 * 24));
+      
+      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diff / 1000 / 60) % 60);
+      const s = Math.floor((diff / 1000) % 60);
+      const ms = Math.floor((diff % 1000) / 10); // 2 digits for visual stability
+
+      setTimeLeft({ y, mo, d, h, m, s, ms });
+      
+      // Only update total days if we aren't faking the time, to keep milestones accurate
+      if (!panicState.isPanicking) {
+          setTotalDays(Math.floor((TARGET_DATE - Date.now()) / (1000 * 60 * 60 * 24)));
+      }
+    }, 16); // ~60fps for smooth millisecond rendering
+
+    return () => clearInterval(timer);
+  }, [panicState]);
+
+  const handlePanicClick = () => {
+    if (panicState.isPanicking) return;
+    
+    setPanicState({ isPanicking: true, startTime: Date.now() });
+    setShowJokeMessage(false);
+    
+    setTimeout(() => {
+      setPanicState({ isPanicking: false, startTime: null });
+      setShowJokeMessage(true);
+      
+      setTimeout(() => {
+        setShowJokeMessage(false);
+      }, 4000);
+    }, 3000); // Panic lasts 3 seconds
+  };
+
+  const getNewCopingMechanism = () => {
+    let newTip = copingTip;
+    while (newTip === copingTip) {
+      newTip = COPING_MECHANISMS[Math.floor(Math.random() * COPING_MECHANISMS.length)];
+    }
+    setCopingTip(newTip);
+  };
+
+  const theme = THEMES[activeTheme];
+
+  return (
+    <>
+      <style>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.02); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 4s ease-in-out infinite;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translate(0, 0) rotate(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translate(-2px, -2px) rotate(-1deg); }
+          20%, 40%, 60%, 80% { transform: translate(2px, 2px) rotate(1deg); }
+        }
+        .animate-shake {
+          animation: shake 0.5s ease-in-out infinite;
+        }
+        @keyframes fall {
+          0% { transform: translateY(-20vh) rotate(0deg) scale(0.5); opacity: 1; }
+          100% { transform: translateY(120vh) rotate(360deg) scale(1.5); opacity: 0; }
+        }
+        .meteor-fall {
+          position: absolute;
+          animation: fall linear infinite;
+        }
+        @keyframes wave {
+          0% { background-position-x: 0; }
+          100% { background-position-x: 1000px; }
+        }
+        .water-wave {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 200%;
+          height: 150px;
+          background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1000 150" xmlns="http://www.w3.org/2000/svg"><path d="M0,50 C150,100 350,0 500,50 C650,100 850,0 1000,50 L1000,150 L0,150 Z" fill="rgba(6,182,212,0.15)"/></svg>') repeat-x;
+          animation: wave 10s linear infinite;
+          pointer-events: none;
+        }
+        .volcano-smoke {
+          position: absolute;
+          inset: 0;
+          backdrop-filter: blur(12px);
+          background: radial-gradient(circle at 50% 100%, rgba(220, 38, 38, 0.2), transparent 70%);
+          pointer-events: none;
+          z-index: 0;
+        }
+        @keyframes drift-up {
+          0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+          10% { opacity: 0.8; }
+          100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+        }
+        .particle-ash {
+          position: absolute;
+          bottom: 0;
+          width: 8px; height: 8px;
+          background-color: #71717a;
+          border-radius: 50%;
+          filter: blur(1px);
+          animation: drift-up linear infinite;
+        }
+        @keyframes ember-rise {
+          0% { transform: translateY(10vh) scale(1); opacity: 1; }
+          50% { opacity: 1; }
+          100% { transform: translateY(-70vh) scale(0.2); opacity: 0; }
+        }
+        .particle-ember {
+          position: absolute;
+          bottom: 0;
+          width: 14px; height: 14px;
+          background: radial-gradient(circle, #facc15 0%, #ea580c 50%, transparent 100%);
+          border-radius: 50%;
+          filter: blur(2px);
+          mix-blend-mode: screen;
+          animation: ember-rise ease-in infinite;
+        }
+        @keyframes fire-flicker-bg {
+          0%, 100% { transform: scale(1); opacity: 0.7; }
+          50% { transform: scale(1.05); opacity: 1; }
+        }
+        .hellfire-bg {
+          position: absolute;
+          bottom: 0; left: 0; right: 0; height: 60vh;
+          background: radial-gradient(ellipse at bottom, rgba(234, 88, 12, 0.6) 0%, rgba(153, 27, 27, 0.4) 40%, transparent 100%);
+          animation: fire-flicker-bg 3s ease-in-out infinite;
+          pointer-events: none;
+          mix-blend-mode: color-dodge;
+        }
+      `}</style>
+
+      <div className={`min-h-screen w-full relative overflow-hidden flex flex-col items-center justify-center p-4 transition-colors duration-1000 ${theme.bg} ${theme.text} ${theme.extraClass || ''}`}>
+        
+        {/* Special Effects Layer */}
+        {particles.map(p => {
+          if (p.type === 'meteor') {
+            return (
+              <div key={p.id} className="meteor-fall text-3xl z-0" style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }}>
+                {p.icon}
+              </div>
+            );
+          }
+          if (p.type === 'ash') {
+            return <div key={p.id} className="particle-ash z-0" style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s`, width: `${3 + Math.random()*6}px`, height: `${3 + Math.random()*6}px` }} />;
+          }
+          if (p.type === 'ember') {
+            return <div key={p.id} className="particle-ember z-0" style={{ left: `${p.left}%`, animationDelay: `${p.delay}s`, animationDuration: `${p.duration}s` }} />;
+          }
+          return null;
+        })}
+
+        {activeTheme === 'water' && (
+          <>
+            <div className="water-wave z-0 opacity-30" style={{ height: '250px', animationDuration: '7s' }} />
+            <div className="water-wave z-0 opacity-50" style={{ animationDirection: 'reverse', height: '200px', animationDuration: '11s' }} />
+            <div className="water-wave z-0 opacity-80" style={{ height: '150px', animationDuration: '9s' }} />
+            <div className="absolute bottom-0 left-0 w-full h-[100px] bg-cyan-900/60 backdrop-blur-[2px] z-0" />
+          </>
+        )}
+        
+        {activeTheme === 'volcano' && (
+          <>
+            <div className="volcano-smoke z-0" />
+            <div className="absolute bottom-0 left-0 w-full h-[30vh] bg-gradient-to-t from-orange-900/80 to-transparent animate-pulse z-0" />
+          </>
+        )}
+
+        {activeTheme === 'fire' && <div className="hellfire-bg z-0" />}
+
+        {/* Main Content Card */}
+        <div className={`relative z-10 w-full max-w-5xl p-6 md:p-12 transition-all duration-700 ${theme.glass}`}>
+          
+          <div className="text-center mb-8 md:mb-10">
+            <h1 className="text-3xl md:text-6xl font-black tracking-tighter uppercase mb-3 flex items-center justify-center gap-2 md:gap-3">
+              <Skull className={activeTheme === 'light' ? 'text-yellow-400' : 'text-current'} size={48} />
+              The Doomsday Clock
+            </h1>
+            <p className={`text-base md:text-xl font-medium tracking-wide uppercase ${theme.accent}`}>
+              {activeTheme === 'light' ? 'Nothing to see here! Have a great day!' : 'March 13, 2036 Edition'}
+            </p>
+          </div>
+
+          {/* High Precision Timer */}
+          <div className="flex justify-center flex-wrap gap-3 md:gap-4 mb-10 md:mb-12">
+            {[
+              { label: 'Years', value: timeLeft.y },
+              { label: 'Months', value: timeLeft.mo },
+              { label: 'Days', value: timeLeft.d },
+              { label: 'Hours', value: timeLeft.h },
+              { label: 'Minutes', value: timeLeft.m },
+              { label: 'Seconds', value: timeLeft.s },
+              { label: 'MS', value: timeLeft.ms, w: 'w-16 md:w-24' }
+            ].map((unit, idx) => (
+              <div key={unit.label} className="flex flex-col items-center">
+                <div className={`
+                  ${unit.w || 'w-16 md:w-24'} h-16 md:h-24 
+                  flex items-center justify-center 
+                  bg-black/20 rounded-xl md:rounded-2xl border border-white/5 
+                  text-3xl md:text-5xl font-mono font-bold tracking-tighter
+                  shadow-inner
+                `}>
+                  {String(unit.value).padStart(2, '0')}
+                </div>
+                <span className={`mt-2 md:mt-3 text-[10px] md:text-sm font-bold uppercase tracking-widest opacity-80 ${theme.accent}`}>
+                  {unit.label}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Sarcastic Milestones */}
+          <div className="text-center mb-12 opacity-90 text-lg md:text-xl font-light">
+            Only <span className={`font-bold ${theme.accent}`}>{totalDays * 3}</span> meals left until the infinite void!
+          </div>
+
+          {/* Interactive Controls Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+            
+            {/* Panic Section */}
+            <div className="flex flex-col items-center justify-center p-6 relative overflow-hidden">
+              <button
+                onClick={handlePanicClick}
+                disabled={panicState.isPanicking}
+                className={`
+                  relative z-10 px-8 py-4 rounded-xl font-bold text-xl uppercase tracking-wider
+                  transition-all duration-200 transform hover:scale-105 active:scale-95
+                  ${panicState.isPanicking 
+                    ? 'bg-red-600 text-white cursor-not-allowed scale-95 shadow-[0_0_40px_rgba(220,38,38,0.8)]' 
+                    : 'bg-red-500/20 text-red-500 border border-red-500/50 hover:bg-red-500 hover:text-white'
+                  }
+                `}
+              >
+                {panicState.isPanicking ? 'AAAAAHHHHH!' : 'Panic Button'}
+              </button>
+              
+              {showJokeMessage && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/90 text-red-500 font-bold text-lg animate-in fade-in duration-300">
+                  Just kidding, you're still doomed.
+                </div>
+              )}
+            </div>
+
+            {/* Coping Mechanism Section */}
+            <div className="flex flex-col items-center justify-between p-6">
+              <p className="text-center text-sm md:text-base font-medium italic min-h-[60px] flex items-center">
+                "{copingTip}"
+              </p>
+              <button 
+                onClick={getNewCopingMechanism}
+                className={`mt-4 flex items-center gap-2 text-sm uppercase tracking-wide font-bold transition-colors opacity-70 hover:opacity-100 ${theme.accent}`}
+              >
+                <Shuffle size={16} /> New Coping Strategy
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Switcher */}
+          <div className="mt-12 pt-8 border-t border-white/10">
+            <p className="text-xs uppercase tracking-widest text-center mb-4 opacity-60">Select Your Apocalypse Flavor</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              {Object.values(THEMES).map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTheme(t.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
+                    ${activeTheme === t.id 
+                      ? `${activeTheme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} shadow-lg scale-105` 
+                      : `bg-black/20 hover:bg-black/40 border ${activeTheme === 'light' ? 'border-black/10' : 'border-white/10'}`
+                    }
+                  `}
+                >
+                  {t.icon}
+                  <span className="hidden sm:inline">{t.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+}
